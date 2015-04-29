@@ -25,7 +25,11 @@
 ;
 ;-
 
-import numpy
+import numpy as np
 
-fun main:
+fun main(cmap, hd, cube, fwhm, cnoise=0, mask=0, beam_area=0, err_ss=0, quiet=0):
+  
+  cms=np.shape(cmap)
+  zeromask = np.zeros(cms)
+  
   ind_map_zero = where(np.isnan(cmap) = 'True')
