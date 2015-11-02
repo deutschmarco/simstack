@@ -118,8 +118,8 @@ def stack_in_redshift_slices(
     dec = layers_radec[ind_src,s,1]
     # CONVERT FROM RA/DEC to X/Y
     # DANGER!!  NOTICE THAT I FLIP X AND Y HERE!! 
-    #tx,ty = w.wcs_world2pix(ra, dec, 1) 
-    ty,tx = w.wcs_world2pix(ra, dec, 0) # WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!! 
+    #tx,ty = w.wcs_world2pix(ra, dec, 1)# WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!!  
+    ty,tx = w.wcs_world2pix(ra, dec, 0)# NOTICE I FLIPPED X AND Y AND NO LONGER TRANSPOSE! 
     #tx = tx - 1.0
     #ty = ty - 1.0
     # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
@@ -154,8 +154,8 @@ def stack_in_redshift_slices(
 
   kern = gauss_kern(fwhm, np.floor(fwhm * 10), pix)
   for u in range(nlists):
-    layer = layers[u,:,:] ## DANGER!! Transpose required but seems wrong!!!!!!!
-    #layer = np.transpose(layers[u,:,:]) ## DANGER!! Transpose required but seems wrong!!!!!!!
+    layer = layers[u,:,:] 
+    #layer = np.transpose(layers[u,:,:]) ## DANGER!! Transpose NO LONGER required AFTER FLIPPING x and y!!!!!!!
     #tmap = gaussian_filter(layer, sig) 
     tmap = smoothmap(layer, kern)
     tmap -= np.mean(tmap[ind_fit])
