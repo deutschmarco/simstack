@@ -1,16 +1,32 @@
 import pdb
 import numpy as np
 from astropy.wcs import WCS
-import lmfit
-from scipy.ndimage.filters import gaussian_filter
+#from scipy.ndimage.filters import gaussian_filter
 from shift import shift_twod
 from VieroLibrary.dist_idl import dist_idl
 from lmfit import Parameters, minimize, fit_report
+from smoothmap import smoothmap
+from gauss_kern import gauss_kern
 
-def simultaneous_stack_array(p, layers_2d, data = None, err = None):
+def simultaneous_stack_array_oned(p, layers_1d, data1d, err1d = None):
   ''' Function to Minimize written specifically for lmfit '''
 
-  #import numpy as np
+  v = p.valuesdict()
+
+  len_model = len(data1d)
+  nlayers = len(layers_1d)/len_model
+
+  model = np.zeros(len_model)
+
+  for i in range(nlayers):
+    model[:] += layers_1d[i*len_model:(i+1)*len_model] * v['layer'+str(i)] 
+
+  if err1d is None:
+    return (data1d - model)
+  return (data1d - model)/err1d
+
+def simultaneous_stack_array(p, layers_2d, data, err = None):
+  ''' Function to Minimize written specifically for lmfit '''
 
   v = p.valuesdict()
 
@@ -21,10 +37,6 @@ def simultaneous_stack_array(p, layers_2d, data = None, err = None):
   for i in range(csize[0]):
     model += layers_2d[i,:] * v['layer'+str(i)] 
 
-  #pdb.set_trace()
-
-  if data is None:
-    return model
   if err is None:
     return (data - model)
   return (data - model)/err
@@ -92,8 +104,6 @@ def stack_in_redshift_slices(
   pix=hd["CD2_2"]*3600.
   if pix == 0: pix=hd["CDELT2"]*3600.
 
-  #print 'oneeeee'
-  #pdb.set_trace()
   #[STEP 0] - Calibrate maps
   if beam_area != None:
     cmap=cmap*beam_area*1e6
@@ -107,14 +117,18 @@ def stack_in_redshift_slices(
     ra = layers_radec[ind_src,s,0]
     dec = layers_radec[ind_src,s,1]
     # CONVERT FROM RA/DEC to X/Y
-    tx,ty = w.wcs_world2pix(ra, dec, 1) 
-    tx = tx - 1.0
-    ty = ty - 1.0
+    # DANGER!!  NOTICE THAT I FLIP X AND Y HERE!! 
+    #tx,ty = w.wcs_world2pix(ra, dec, 1) 
+    ty,tx = w.wcs_world2pix(ra, dec, 0) # WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!! 
+    #tx = tx - 1.0
+    #ty = ty - 1.0
     # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
     ind_keep = np.where((tx[0] >= 0) & (tx[0] < cms[0]) & (ty[0] >= 0) & (ty[0] < cms[1]))
     nt0 = np.shape(ind_keep)[1]
-    real_x=np.rint(tx[0,ind_keep][0]).astype(int)
-    real_y=np.rint(ty[0,ind_keep][0]).astype(int)
+    #real_x=np.rint(tx[0,ind_keep][0]).astype(int)
+    #real_y=np.rint(ty[0,ind_keep][0]).astype(int)
+    real_x=np.floor(tx[0,ind_keep][0]).astype(int)
+    real_y=np.floor(ty[0,ind_keep][0]).astype(int)
     # CHECK FOR SOURCES THAT FALL ON ZEROS MAP
     if nzero > 0:
       tally = np.zeros(nt0)
@@ -129,50 +143,54 @@ def stack_in_redshift_slices(
     for ni in range(nt):
       layers[s, real_x[ni],real_y[ni]]+=1.0
 
-  #print 'twooooo'
-  #pdb.set_trace()
   # STEP 2  - Convolve Layers and put in pixels
   radius = 1.1
   sig = fwhm / 2.355 / pix 
   flattened_pixmap = np.sum(layers,axis=0)
-  #print 'threeee'
-  #pdb.set_trace()
   total_circles_mask = circle_mask(flattened_pixmap, radius * fwhm, pix)
-  #print 'fourrrrr'
-  #pdb.set_trace()
   ind_fit = np.where(total_circles_mask >= 1) # & zeromask != 0)
   nhits = np.shape(ind_fit)[1]
   cfits_maps = np.zeros([nlists,nhits])
 
-  #print 'fiveeeee'
-  #pdb.set_trace()
+  kern = gauss_kern(fwhm, np.floor(fwhm * 10), pix)
   for u in range(nlists):
-    layer = np.transpose(layers[u,:,:]) ## DANGER!!
-    tmap = gaussian_filter(layer, sig) 
+    layer = layers[u,:,:] ## DANGER!! Transpose required but seems wrong!!!!!!!
+    #layer = np.transpose(layers[u,:,:]) ## DANGER!! Transpose required but seems wrong!!!!!!!
+    #tmap = gaussian_filter(layer, sig) 
+    tmap = smoothmap(layer, kern)
     tmap -= np.mean(tmap[ind_fit])
     cfits_maps[u,:] = tmap[ind_fit]
 
   # STEP 3 - Regress Layers with Map (i.e., stack!)
-  #p0 = np.ones(nlists)
 
   cmap[ind_fit] -= np.mean(cmap[ind_fit], dtype=np.float32)
 
-  #cov_ss = mpfitfun('simultaneous_stack_array',cfits_maps, $
-  #  cmap[ind_fit], cnoise[ind_fit],p0,ftol=1d-15,quiet=quiet,PERROR=err_ss)
-
-  #print 'fourrrrr'
-  #pdb.set_trace()
   fit_params = Parameters()
+
   for iarg in range(nlists): 
-    fit_params.add('layer'+str(iarg),value= 0.001)
+    fit_params.add('layer'+str(iarg),value= np.random.randn())
   imap = cmap[ind_fit]
   ierr = cnoise[ind_fit]
 
-  #cov_ss = minimize(simultaneous_stack_array, fit_params, args=(cfits_maps), kws={'data':imap,'err':ierr})
-  cov_ss = minimize(simultaneous_stack_array, fit_params, args=(cfits_maps,), kws={'data':imap,'err':ierr})
-  #cov_ss = minimize(simultaneous_stack_array, fit_params, args=(cfits_maps,imap))
+  #cov_ss = minimize(simultaneous_stack_array, fit_params, args=(cfits_maps,), kws={'data':imap,'err':ierr})
+  ##cov_ss = minimize(simultaneous_stack_array, fit_params, args=(cfits_maps,imap,ierr))
 
-  pdb.set_trace()
+  cov_ss_1d = minimize(simultaneous_stack_array_oned, fit_params, 
+    args=(np.ndarray.flatten(cfits_maps),), kws={'data1d':np.ndarray.flatten(imap),'err1d':np.ndarray.flatten(ierr)})
+    #args=(np.ndarray.flatten(cfits_maps), np.ndarray.flatten(imap),np.ndarray.flatten(ierr)))
   # STEP 4  - Returns a minimizer object
 
-  return cov_ss
+  #pdb.set_trace()
+  return cov_ss_1d
+
+
+
+
+
+
+
+
+
+
+
+

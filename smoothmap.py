@@ -28,6 +28,4 @@ def smoothmap(mapin, psfin):
     	np.fft.fft2(psfpad)) 
 		) # * mnx * mny
 
-	#pdb.set_trace()
-
 	return smmap

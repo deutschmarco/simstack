@@ -36,15 +36,30 @@
 #     
 #
 #  HISTORY:
-#     CREATED BY marco.viero@caltech.edu     (2013-03-03)
-#     ADDED ROUNDING OF FLOATING POING AFTER ADXY  (2014-04-07)
-#     ADDED MEAN OF ind_mean SUBSET OF tmap/cmap   (2014-04-07)
+#     CREATED FOR IDL BY marco.viero@caltech.edu     (2013-03-03)
+#     TRANSLATED TO PYTHONG BY marco.viero@stanford.edu (2015-07)
 #-
 
+import pdb
 import numpy as np
+from astropy.wcs import WCS
+from astropy.io import fits
+#import mpfit
+#import numpy.oldnumeric as Numeric
+import lmfit
 
-def main(cmap, hd, cube, fwhm, cnoise=0, mask=0, beam_area=0, err_ss=0, quiet=0):
+def stack_in_redshift_slices(
+  cmap, 
+  hd, 
+  cube, 
+  fwhm, 
+  cnoise=None, 
+  mask=None, 
+  beam_area=None, 
+  err_ss=None, 
+  quiet=None):
   
+  w = WCS(hd)
   #FIND SIZES OF MAP AND LISTS
   cms = np.shape(cmap)
   zeromask = np.zeros(cms)
@@ -53,18 +68,71 @@ def main(cmap, hd, cube, fwhm, cnoise=0, mask=0, beam_area=0, err_ss=0, quiet=0)
   nsrcmax = size_cube[0]
   nlists = size_cube[1]
   
-  ind_map_zero = where(np.isnan(cmap) = 'True')
+  ind_map_zero = np.where(np.isnan(cmap) == 'True')
+  nzero = len(ind_map_zero)
 
   if cnoise == 0: cnoise=cmap*0.0 + 1.0
 
-  pix=hd.header['CD2_2']*3600.
-  if pix == 0: pix=hd.header['CDELT2']*3600.
+  pix=hd["CD2_2"]*3600.
+  if pix == 0: pix=hd["CDELT2"]*3600.
 
   #[STEP 0] - Calibrate maps
-  if beam_area != 0:
+  if beam_area != None:
     cmap=cmap*beam_area*1e6
     cnoise=noise*beam_area*1e6
 
   # STEP 1  - Make Layers Cube
-  cube_dimensions=[nlists,ms[0],ms[1]]
+  cube_dimensions=[nlists,cms[0],cms[1]]
   layers = np.zeros(cube_dimensions)
+
+  for s in range(nlists):
+    ind_src = np.where(cube[:,s,0] != 0)
+    ra = cube[ind_src,s,0]
+    dec = cube[ind_src,s,1]
+    # CONVERT FROM RA/DEC to X/Y
+    tx,ty = w.wcs_world2pix(ra, dec, 1)
+    # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
+    #ind_keep = np.where(tx[0,:] >= 0 & tx[0,:] < cms[0] & ty[0,:] >= 0 & ty[0,:] < cms[1])
+    ind_keep = np.where((tx >= 0) & (tx < cms[0]) & (ty >= 0) & (ty < cms[1])
+    nt0 = len(ind_keep)
+    real_x=np.round(tx[ind_keep])
+    real_y=np.round(ty[ind_keep])
+    # CHECK FOR SOURCES THAT FALL ON ZEROS MAP
+    if nzero > 0:
+      tally = np.zeros(nt0)
+      for d in range(nt0):
+        if cmap[real_x[d],real_y[d]] != 0: 
+          tally[d]=1.
+      ind_nz=np.where(tally == 1)
+      nt = len(ind_nz)
+      real_x = real_x[ind_nz]
+      real_y = real_y[ind_nz]
+    else: nt = nt0
+    #if keyword_set(verbose) then $
+    #  print, 'of '+ strcompress(string(nt,format='(i10)'),/remove_all)+' sources in list '+strcompress(string(nt0-nt,format='(i10)'),/remove_all)+' fall outside'
+    for ni in range(nt):
+      layers[s, real_x[ni],real_y[ni]]+=1.0
+
+  # STEP 2  - Convolve Layers and put in pixels
+  radius = 1.1
+  #kern = gauss_kern(fwhm, size, pixsize)
+  sig = fwhm / 2.355 / pixsize 
+  total_circles_mask = circle_mask(flattened_pixmap, radius * fwhm, pixsize)
+  ind_fit = np.where(total_circles_mask >= 1 & zeromask != 0)
+  nhits = len(ind_fit)
+  cfits_maps = np.zeros([nlists,nhits])
+  for u in range(nlists):
+    #layer = np.sum(layers, axis = 0)
+    layer = layers[u,:,:]
+    tmap = gaussian_filter(layer, sig) 
+    cfits_maps[u,:] = tmap[ind_fit]
+
+  # STEP 3 - Regress Layers with Map (i.e., stack!)
+  p0 = np.ones(nlists)
+  cmap -= np.mean(cmap[ind_fit], dtype=np.float32)
+
+  #cov_ss = mpfitfun('simultaneous_stack_array',cfits_maps, $
+  #  cmap[ind_fit], cnoise[ind_fit],p0,ftol=1d-15,quiet=quiet,PERROR=err_ss)
+
+  # STEP 4  - Bob's your uncle 
+  return cov_ss

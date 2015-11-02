@@ -26,7 +26,6 @@ def viero_quick_stack(
 	for i in range(nlists): 
 		list_name = catalog_names[i]
 		ra, dec = readcol.readcol(list_name,fsep=',',twod=False)
-		#print ra
 		nsources_list=len(ra)
 		if nsources_list > n_sources_max: 
 			print 'too many sources in catalog: use N_SOURCES_MAX flag'
@@ -45,7 +44,6 @@ def viero_quick_stack(
 
 	for wv in range(nmap): 
 		#READ MAPS
-		#cmap=readfits(map_names[wv],hd,ext=1,/silent)
 		cmap, chd = fits.getdata(map_names[wv], 0, header = True)
 
 		#cnoise=0
