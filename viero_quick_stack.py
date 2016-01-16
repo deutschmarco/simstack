@@ -2,8 +2,6 @@ import pdb
 import numpy as np
 from VieroLibrary import readcol
 from astropy.io import fits
-#from stack_in_redshift_slices import stack_in_redshift_slices
-#import simstack
 from simstack import stack_in_redshift_slices
 
 def viero_quick_stack(

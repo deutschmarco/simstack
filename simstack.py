@@ -1,7 +1,7 @@
 import pdb
 import numpy as np
 from astropy.wcs import WCS
-from .shift import shift_twod
+from shift import shift_twod
 from VieroLibrary.dist_idl import dist_idl
 from lmfit import Parameters, minimize, fit_report
 from smoothmap import smoothmap
