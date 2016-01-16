@@ -1,6 +1,6 @@
 import pdb
 import numpy as np
-from shift import shift_twod
+from .shift import shift_twod
 
 def smoothmap(mapin, psfin):
 

@@ -2,7 +2,7 @@ import pdb
 def gauss_kern(fwhm, side, pixsize): 
 	''' Create a 2D Gaussian (size= side x side)''' 
 	from scipy.ndimage.filters import gaussian_filter
-	from shift import shift_twod
+	from .shift import shift_twod
 	import numpy as np
 	from numpy import zeros
 	from numpy import shape
