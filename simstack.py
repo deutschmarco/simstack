@@ -1,7 +1,6 @@
 import pdb
 import numpy as np
 from astropy.wcs import WCS
-#from scipy.ndimage.filters import gaussian_filter
 from .shift import shift_twod
 from VieroLibrary.dist_idl import dist_idl
 from lmfit import Parameters, minimize, fit_report
