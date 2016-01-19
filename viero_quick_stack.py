@@ -1,5 +1,6 @@
 import pdb
 import numpy as np
+import os
 from VieroLibrary import readcol
 from astropy.io import fits
 from simstack import stack_in_redshift_slices
@@ -23,16 +24,17 @@ def viero_quick_stack(
 	cube = np.zeros([n_sources_max, nlists, 2]) # nsources by nlis/nts by 2 for RA/DEC
 	for i in range(nlists): 
 		list_name = catalog_names[i]
-		ra, dec = readcol.readcol(list_name,fsep=',',twod=False)
-		nsources_list=len(ra)
-		if nsources_list > n_sources_max: 
-			print 'too many sources in catalog: use N_SOURCES_MAX flag'
-			break
-
-		cube[0:nsources_list,i,0]=ra
-		cube[0:nsources_list,i,1]=dec
-		if nsources_list > nsources: 
-			nsources=nsources_list
+		if os.path.getsize(list_name) > 0: 
+			ra, dec = readcol.readcol(list_name,fsep=',',twod=False)
+			nsources_list=len(ra)
+			if nsources_list > n_sources_max: 
+				print 'too many sources in catalog: use N_SOURCES_MAX flag'
+				break
+			if nsources_list > 0:
+				cube[0:nsources_list,i,0]=ra
+				cube[0:nsources_list,i,1]=dec
+			if nsources_list > nsources: 
+				nsources=nsources_list
 
 	cube=cube[0:nsources-1,:,:] # Crop it down to the length of longest list
 
