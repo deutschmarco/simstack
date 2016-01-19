@@ -113,34 +113,32 @@ def stack_in_redshift_slices(
 
   for s in range(nlists):
     ind_src = np.where(layers_radec[:,s,0] != 0)
-    ra = layers_radec[ind_src,s,0]
-    dec = layers_radec[ind_src,s,1]
-    # CONVERT FROM RA/DEC to X/Y
-    # DANGER!!  NOTICE THAT I FLIP X AND Y HERE!! 
-    #tx,ty = w.wcs_world2pix(ra, dec, 1)# WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!!  
-    ty,tx = w.wcs_world2pix(ra, dec, 0)# NOTICE I FLIPPED X AND Y AND NO LONGER TRANSPOSE! 
-    #tx = tx - 1.0
-    #ty = ty - 1.0
-    # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
-    ind_keep = np.where((tx[0] >= 0) & (tx[0] < cms[0]) & (ty[0] >= 0) & (ty[0] < cms[1]))
-    nt0 = np.shape(ind_keep)[1]
-    #real_x=np.rint(tx[0,ind_keep][0]).astype(int)
-    #real_y=np.rint(ty[0,ind_keep][0]).astype(int)
-    real_x=np.floor(tx[0,ind_keep][0]).astype(int)
-    real_y=np.floor(ty[0,ind_keep][0]).astype(int)
-    # CHECK FOR SOURCES THAT FALL ON ZEROS MAP
-    if nzero > 0:
-      tally = np.zeros(nt0)
-      for d in range(nt0):
-        if cmap[real_x[d],real_y[d]] != 0: 
-          tally[d]=1.
-      ind_nz=np.where(tally == 1)
-      nt = np.shape(ind_nz)[1]
-      real_x = real_x[ind_nz]
-      real_y = real_y[ind_nz]
-    else: nt = nt0
-    for ni in range(nt):
-      layers[s, real_x[ni],real_y[ni]]+=1.0
+    #print np.shape(ind_src)[1]
+    if np.shape(ind_src)[1] > 0:
+      ra = layers_radec[ind_src,s,0]
+      dec = layers_radec[ind_src,s,1]
+      # CONVERT FROM RA/DEC to X/Y
+      # DANGER!!  NOTICE THAT I FLIP X AND Y HERE!! 
+      #tx,ty = w.wcs_world2pix(ra, dec, 1)# WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!!  
+      ty,tx = w.wcs_world2pix(ra, dec, 0)# NOTICE I FLIPPED X AND Y AND NO LONGER TRANSPOSE! 
+      # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
+      ind_keep = np.where((tx[0] >= 0) & (tx[0] < cms[0]) & (ty[0] >= 0) & (ty[0] < cms[1]))
+      nt0 = np.shape(ind_keep)[1]
+      real_x=np.floor(tx[0,ind_keep][0]).astype(int)
+      real_y=np.floor(ty[0,ind_keep][0]).astype(int)
+      # CHECK FOR SOURCES THAT FALL ON ZEROS MAP
+      if nzero > 0:
+        tally = np.zeros(nt0)
+        for d in range(nt0):
+          if cmap[real_x[d],real_y[d]] != 0: 
+            tally[d]=1.
+        ind_nz=np.where(tally == 1)
+        nt = np.shape(ind_nz)[1]
+        real_x = real_x[ind_nz]
+        real_y = real_y[ind_nz]
+      else: nt = nt0
+      for ni in range(nt):
+        layers[s, real_x[ni],real_y[ni]]+=1.0
 
   # STEP 2  - Convolve Layers and put in pixels
   radius = 1.1
