@@ -61,7 +61,7 @@ def viero_quick_stack(
 			quiet=None)
 		#pdb.set_trace()
 
-		stacked_flux = np.array(stacked_object.values.values())
+		stacked_flux = np.array(stacked_object.params.values())
 		stacked_sed[wv,:] = stacked_flux
 			
 		#stacked_sed_err[wv,:]=err_ss
