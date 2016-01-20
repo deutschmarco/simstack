@@ -165,7 +165,7 @@ def stack_in_redshift_slices(
   fit_params = Parameters()
 
   for iarg in range(nlists): 
-    fit_params.add('layer'+str(iarg),value= np.random.randn())
+    fit_params.add('layer'+str(iarg),value= 1e-3*np.random.randn())
   imap = cmap[ind_fit]
   ierr = cnoise[ind_fit]
 
