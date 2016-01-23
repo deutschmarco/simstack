@@ -3,13 +3,17 @@ import numpy as np
 import os
 from VieroLibrary import readcol
 from astropy.io import fits
-from simstack import stack_in_redshift_slices
+from simstack import stack_in_redshift_slices as simstack
+from sedstack import stack_in_redshift_slices as sedstack
+from VieroLibrary.invert_sed import single_simple_flux_from_greybody
 
 def viero_quick_stack(
 	map_names, 
 	catalog_names, 
 	noise_map_names,
-	n_sources_max = None
+	n_sources_max = None,
+	sedfitwavelengths = None,
+	zed = 0.001
 	): 
 
 	if n_sources_max == None: n_sources_max=50000l
@@ -40,31 +44,61 @@ def viero_quick_stack(
 
 	stacked_sed=np.zeros([nmap, nlists])
 	stacked_sed_err=np.zeros([nmap,nlists])
-	#STACK AT ONE WAVELENGTH AT A TIME 
 
-	for wv in range(nmap): 
-		#READ MAPS
-		cmap, chd = fits.getdata(map_names[wv], 0, header = True)
+	if sedfitwavelengths != None:
+		#FIT SEDS TO FIND FLUXES
+		cmaps = [] #np.asarray([])
+		cnoise = [] # np.asarray([])
+		for wv in range(nmap): 
+			#READ MAPS
+			tmaps, thd = fits.getdata(map_names[wv], 0, header = True)
+			#cmaps = np.append(cmaps,tmaps)
+			cmaps.append(tmaps)
+			if noise_map_names != None: 
+				tnoise, nhd = fits.getdata(noise_map_names[wv], 0, header = True)
+				#cnoise = np.append(cnoise,tnoise)
+				cnoise.append(tnoise)
 
-		#cnoise=0
-		if noise_map_names != None: 
-			cnoise, nhd = fits.getdata(noise_map_names[wv], 0, header = True)
-
-		#pdb.set_trace()
-		stacked_object=stack_in_redshift_slices(
-			cmap,
-			chd,
+		stacked_object=sedstack(
+			np.asarray(cmaps),
+			thd,
 			cube,
-			efwhm[wv],
-			cnoise=cnoise,
+			sedfitwavelengths,
+			efwhm,
+			cnoise=np.asarray(cnoise),
 		#	err_ss=err_ss,
+			zed=zed,
 			quiet=None)
+
+		print 'yeaaahhh!!'
+		v = stacked_object.params.valuesdict()
+		for ised in range(nlists):
+			Temp = np.asarray(v['T'+str(ised)])
+			Lir = np.asarray(v['L'+str(ised)])
+			#pdb.set_trace()
+			stacked_sed[:,ised]=single_simple_flux_from_greybody(np.asarray(sedfitwavelengths), Trf = Temp, Lrf = Lir, b=2.0, zin=zed)
 		#pdb.set_trace()
+		return [stacked_sed, v]
+	else:
+		#STACK AT ONE WAVELENGTH AT A TIME 
+		for wv in range(nmap): 
+			#READ MAPS
+			cmap, chd = fits.getdata(map_names[wv], 0, header = True)
 
-		stacked_flux = np.array(stacked_object.params.values())
-		stacked_sed[wv,:] = stacked_flux
-			
-		#stacked_sed_err[wv,:]=err_ss
+			if noise_map_names != None: 
+				cnoise, nhd = fits.getdata(noise_map_names[wv], 0, header = True)
 
-		#stacked_flux = None
-	return stacked_sed
+			stacked_object=simstack(
+				cmap,
+				chd,
+				cube,
+				efwhm[wv],
+				cnoise=cnoise,
+			#	err_ss=err_ss,
+				quiet=None)
+
+			stacked_flux = np.array(stacked_object.params.values())
+			stacked_sed[wv,:] = stacked_flux
+			#stacked_sed_err[wv,:]=err_ss
+		#pdb.set_trace()
+		return stacked_sed
