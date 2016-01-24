@@ -11,6 +11,8 @@ def viero_quick_stack(
 	map_names, 
 	catalog_names, 
 	noise_map_names,
+	efwhm,
+	color_correction=None,
 	n_sources_max = None,
 	sedfitwavelengths = None,
 	zed = 0.001
@@ -19,8 +21,8 @@ def viero_quick_stack(
 	if n_sources_max == None: n_sources_max=50000l
 	nmap = len(map_names)
 
-	fwhm  = np.array([18.1, 25.2, 36.6])
-	efwhm = np.array([17.6, 23.9, 35.2])
+	#fwhm  = np.array([18.1, 25.2, 36.6])
+	#efwhm = np.array([17.6, 23.9, 35.2])
 
 	#PUT DATA INTO CUBE
 	nlists = len(catalog_names)
@@ -47,16 +49,18 @@ def viero_quick_stack(
 
 	if sedfitwavelengths != None:
 		#FIT SEDS TO FIND FLUXES
-		cmaps = [] #np.asarray([])
-		cnoise = [] # np.asarray([])
+		cmaps = [] 
+		cnoise = [] 
 		for wv in range(nmap): 
 			#READ MAPS
 			tmaps, thd = fits.getdata(map_names[wv], 0, header = True)
-			#cmaps = np.append(cmaps,tmaps)
+			if color_correction != None:
+				tmaps *= color_correction[wv]
 			cmaps.append(tmaps)
 			if noise_map_names != None: 
 				tnoise, nhd = fits.getdata(noise_map_names[wv], 0, header = True)
-				#cnoise = np.append(cnoise,tnoise)
+				if color_correction != None:
+					tnoise *= color_correction[wv]
 				cnoise.append(tnoise)
 
 		stacked_object=sedstack(
@@ -72,11 +76,12 @@ def viero_quick_stack(
 
 		print 'yeaaahhh!!'
 		v = stacked_object.params.valuesdict()
+		beta = np.asarray(v['b'])
 		for ised in range(nlists):
 			Temp = np.asarray(v['T'+str(ised)])
 			Lir = np.asarray(v['L'+str(ised)])
 			#pdb.set_trace()
-			stacked_sed[:,ised]=single_simple_flux_from_greybody(np.asarray(sedfitwavelengths), Trf = Temp, Lrf = Lir, b=2.0, zin=zed)
+			stacked_sed[:,ised]=single_simple_flux_from_greybody(np.asarray(sedfitwavelengths), Trf = Temp, Lrf = Lir, b=beta, zin=zed)
 		#pdb.set_trace()
 		return [stacked_sed, v]
 	else:

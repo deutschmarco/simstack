@@ -88,7 +88,6 @@ def stack_in_redshift_slices(
   w = WCS(hd)
   #FIND SIZES OF MAP AND LISTS
   cms = np.shape(cmaps) # should be a cube
-  #nwv = np.size(wavelengths)
   nwv = cms[0] 
   #zeromask = np.zeros(cms)
 
@@ -140,7 +139,6 @@ def stack_in_redshift_slices(
         layers[s, real_x[ni],real_y[ni]]+=1.0
 
   # STEP 2  - Convolve Layers and put in pixels
-  #all_map_layers = np.zeros(np.append(nwv,np.shape(layers)))
 
   cfits_flat = np.asarray([])
   cfits_flat2= np.asarray([])
@@ -155,7 +153,6 @@ def stack_in_redshift_slices(
     total_circles_mask = circle_mask(flattened_pixmap, radius * fwhm[iwv], pix)
     ind_fit = np.where(total_circles_mask >= 1) # & zeromask != 0)
     nhits = np.shape(ind_fit)[1]
-    #cfits_maps = np.zeros([nlists,nhits])
     LenLayers[iwv] = nhits
 
     kern = gauss_kern(fwhm[iwv], np.floor(fwhm[iwv] * 10), pix)
@@ -163,13 +160,8 @@ def stack_in_redshift_slices(
       layer = layers[u,:,:]  
       tmap = smoothmap(layer, kern)
       tmap -= np.mean(tmap[ind_fit])
-      #cfits_maps[u,:] = tmap[ind_fit]
       cfits_flat = np.append(cfits_flat,np.ndarray.flatten(tmap[ind_fit]))
 
-    #FLATTEN EVERYTHING HERE RATHER THAN BELOW
-    #cfits_flat2= np.append(cfits_flat,np.ndarray.flatten(cfits_maps))
-
-    #pdb.set_trace()
     lmap = cmaps[iwv]
     lnoise = cnoise[iwv]
     lmap[ind_fit] -= np.mean(lmap[ind_fit], dtype=np.float32)
@@ -177,13 +169,13 @@ def stack_in_redshift_slices(
     flat_noise = np.append(flat_noise,np.ndarray.flatten(lnoise[ind_fit]))
     #pdb.set_trace()
 
-
   # STEP 3 - Regress Layers with Map (i.e., stack!)
 
   fit_params = Parameters()
 
+  fit_params.add('b',value= 2.0,vary=False)
   for iarg in range(nlists): 
-    fit_params.add('T'+str(iarg),value= 25.,vary=True,min=10.,max=150.)
+    fit_params.add('T'+str(iarg),value= 25.,vary=True,min=7.,max=60.)
     fit_params.add('L'+str(iarg),value= 1e12,min=0.,max=1e14)
 
   cov_ss_1d = minimize(simultaneous_stack_sed_oned, fit_params, 
