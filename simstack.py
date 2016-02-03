@@ -122,7 +122,7 @@ def stack_in_redshift_slices(
       #tx,ty = w.wcs_world2pix(ra, dec, 1)# WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!!  
       ty,tx = w.wcs_world2pix(ra, dec, 0)# NOTICE I FLIPPED X AND Y AND NO LONGER TRANSPOSE! 
       # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
-      ind_keep = np.where((tx[0] >= 0) & (tx[0] < cms[0]) & (ty[0] >= 0) & (ty[0] < cms[1]))
+      ind_keep = np.where((tx[0] >= 0) & (np.floor(tx[0]) < cms[0]) & (ty[0] >= 0) & (np.floor(ty[0]) < cms[1]))
       nt0 = np.shape(ind_keep)[1]
       real_x=np.floor(tx[0,ind_keep][0]).astype(int)
       real_y=np.floor(ty[0,ind_keep][0]).astype(int)
