@@ -119,13 +119,22 @@ def stack_in_redshift_slices(
       dec = layers_radec[ind_src,s,1]
       # CONVERT FROM RA/DEC to X/Y
       # DANGER!!  NOTICE THAT I FLIP X AND Y HERE!! 
-      #tx,ty = w.wcs_world2pix(ra, dec, 1)# WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!!  
-      ty,tx = w.wcs_world2pix(ra, dec, 0)# NOTICE I FLIPPED X AND Y AND NO LONGER TRANSPOSE! 
+      # GJS: the last argument sets the origin. I compared the goodness of match between the code output and
+      #      the locations of 250um selected sources from the SPIRE 250 StarFinder catalog. It looks 1 should
+      #      be the better option. 
+      ty,tx = w.wcs_world2pix(ra, dec, 1)# WHAT IS THE DIFFERENCE BETWEEN 0 AND 1???!!!  
+      #ty,tx = w.wcs_world2pix(ra, dec, 0)# NOTICE I FLIPPED X AND Y AND NO LONGER TRANSPOSE! 
+      
       # CHECK FOR SOURCES THAT FALL OUTSIDE MAP
-      ind_keep = np.where((tx[0] >= 0) & (np.floor(tx[0]) < cms[0]) & (ty[0] >= 0) & (np.floor(ty[0]) < cms[1]))
+      #ind_keep = np.where((tx[0] >= 0) & (np.floor(tx[0]) < cms[0]) & (ty[0] >= 0) & (np.floor(ty[0]) < cms[1]))
+      ind_keep = np.where((tx[0] >= 0) & (np.floor(tx[0]) < cms[0]-1) & (ty[0] >= 0) & (np.floor(ty[0]) < cms[1]-1))
       nt0 = np.shape(ind_keep)[1]
-      real_x=np.floor(tx[0,ind_keep][0]).astype(int)
-      real_y=np.floor(ty[0,ind_keep][0]).astype(int)
+      #real_x=np.floor(tx[0,ind_keep][0]).astype(int)
+      #real_y=np.floor(ty[0,ind_keep][0]).astype(int)
+      # GJS: Lorenzo and I think these coordinates should be round to the closest integer... 
+      #      Line 126 is modified to accommodate this...
+      real_x=np.round(tx[0,ind_keep][0],0).astype(int)
+      real_y=np.round(ty[0,ind_keep][0],0).astype(int)      
       # CHECK FOR SOURCES THAT FALL ON ZEROS MAP
       if nzero > 0:
         tally = np.zeros(nt0)
